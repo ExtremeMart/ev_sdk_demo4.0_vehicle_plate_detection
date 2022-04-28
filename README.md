@@ -64,7 +64,7 @@ ev_sdk
 3. 测试,我们提供了测试工具test-ji-api方便开发者进行算法的快速测试,在下面的[demo测试](#jump_dev_test)中我们将演示如何使用测试工具进行基本的测试(**这点非常重要,开发者需要先自测通过再提交算法**)
 
 ## demo说明
-本项目基于极视平台EV_SDK4.0标准作为模板进行算法封装，旨在为开发者提供最直观的关于SDK4.0的理解. 本项目中本项目中我们利用**YOLOX目标检测框架,并采用Tensorrt进行模型推理**, 实现一个车辆和车牌检测算法, 算法逻辑为当车辆出现在指定ROI内部时触发报警,在算法返回图片及json中进行体现.本项目中算法首次运行时,先用Tensorrt直接加载onnx模型,并保存为trt模型,以便再次运行时直接trt模型,加快初始化.本项目中,我们使用了一般SDK开发中都会用的的配置解析,json字符串处理, 图片文字(框)绘制等功能,开发者可以参考demo中的部分逻辑.
+本项目基于极视平台EV_SDK4.0标准作为模板进行算法封装，旨在为开发者提供最直观的关于SDK4.0的理解. 本项目中我们利用**YOLOX目标检测框架,并采用Tensorrt进行模型推理**, 实现一个车辆和车牌检测算法, 算法逻辑为当车辆出现在指定ROI内部时触发报警,在算法返回图片及json中进行体现.本项目中算法首次运行时,先用Tensorrt直接加载onnx模型,并保存为trt模型,以便再次运行时直接trt模型,加快初始化.本项目中,我们使用了一般SDK开发中都会用的的配置解析,json字符串处理, 图片文字(框)绘制等功能,开发者可以参考demo中的部分逻辑.
 ### demo源码介绍
 我们在demo开发中采用单一职责原则,将算法逻辑处理,模型推理,配置管理等功能封装到不同的C++类中,方便算法的开发和维护.
 1. 在SampleAlgorithm.cpp文件中我们封装了算法逻辑,通过该对象的实现算法的初始化,调用,反初始化,配置更新等功能.对象内部保存json字符串的成员变量,以及返回图片对象的成员变量,如果开发这按照如下的几个接口封装算法类,则只需在ji.cpp中更改算法版本信息algo_version,无需做其他更改.
@@ -137,12 +137,13 @@ nvidia-docker run -itd --privileged ccr.ccs.tencentyun.com/public_images/ubuntu1
 ```
 
 下面我们对部分功能进行详细的说明
-1. 测试功能, 1指同步调用接口, 2指异步调用接口, 3会在每次调用算法前后执行ji_create_predictor,ji_destroy_predictor接口初始化和反初始化算法,以测试SDK是否能够正确释放资源,指定功能3的时候一定要和-r参数配合使用,在运行过程中监控test-ji-api的内存占用,显存占用等是否不停的增长,5测试获取版本信息的接口.
+1. 测试功能, 1指同步调用接口, 2指异步调用接口, 3会在每次调用算法前后执行ji_create_predictor,ji_destroy_predictor接口初始化和反初始化算法,以测试SDK是否能够正确释放资源,指定功能3的时候一定要和-r参数配合使用,在运行过程中监控test-ji-api的内存占用,显存占用等是否不停的增长,5测试获取版本信息的接口. -i参数指定输入时,可以输入多张图片,直接用逗号分割.(**!!!多张图片是指sdk一次调用ji_calc_image传入的图片数量不是指多次调用，每次传入一张图片**)
    ```
    在/usr/local/ev_sdk/bin路径下执行测试
-    ./test-ji-api -f 1 -u "{}" -i ../data/vp.jpeg -o result.jpg
-    ./test-ji-api -f 3 -u "{}" -i ../data/vp.jpeg -o result.jpg -r -1 #无限循环调用
-    ./test-ji-api -f 5     
+    ./test-ji-api -f 1 -i ../data/vp.jpeg -o result.jpg #输入单张图片
+    ./test-ji-api -f 1 -i ../data/vp.jpeg,../data/vp.jpeg -o result.jpg #输入两张图片
+    ./test-ji-api -f 3 -i ../data/vp.jpeg -o result.jpg -r -1 #无限循环调用
+    ./test-ji-api -f 5    
    ```
 2. 测试参数,算法初始化时会从配置文件中加载默认配置参数,对于部分参数通过接口可以动态覆盖默认参数,如果项目要求能够动态指定的参数,需要测试通过-u和-a传递的参数能够生效.例如,对于本demo的配置文件如下
 
@@ -178,13 +179,15 @@ nvidia-docker run -itd --privileged ccr.ccs.tencentyun.com/public_images/ubuntu1
     }
     ```
 
-配置文件中的polygon_1参数和language参数需要支持动态配置,则需要利用-a参数测试,-u和-a参数的区别在于-u是通过ji_update_config接口单独传递,-i是通过ji_calc_iamge的args参数传递,且在当前测试版本中-u是必选参数,如果不想通过-u传递参数,可以直接通过-u "{}"传递一个空的json.
+配置文件中的polygon_1参数和language参数需要支持动态配置,则需要利用-a和-u参数测试,-u和-a参数的区别在于-u是通过ji_update_config接口单独传递,-i是通过ji_calc_iamge的args参数传递.
    ```
-    //未指定参数
-        ./test-ji-api -f 1 -i ../data/persons.jpg -o result.jpg -u "{}"
+    //-u指定参数
+        ./test-ji-api -f 1 -i ../data/persons.jpg 
+        -u "{\"polygon_1\": [\"POLYGON((0.2 0.2, 0.8 0, 0.8 0.8, 0 0.8))\"],\"language\":\"zh\"}"
+        -o result.jpg
 
-    //指定参数
-        ./test-ji-api -f 1 -i ../data/persons.jpg  -u "{}"
+    //-a指定参数
+        ./test-ji-api -f 1 -i ../data/persons.jpg  
         -a "{\"polygon_1\": [\"POLYGON((0.2 0.2, 0.8 0, 0.8 0.8, 0 0.8))\"],\"language\":\"zh\"}"
         -o result.jpg
    ```
@@ -451,15 +454,14 @@ nvidia-docker run -itd --privileged ccr.ccs.tencentyun.com/public_images/ubuntu1
 1. 输入单张图片，并调用`ji_calc_image`接口：
 
    ```shell
-   ./test-ji-api -f 1 -u "{}" -i /path/to/test.jpg 
+   ./test-ji-api -f 1 -i /path/to/test.jpg 
    ```
 
 2. 输入`json`格式的`polygon_1`参数到`args`参数：
 
    ```shell
    ./test-ji-api \
-   -f 1 \
-   -u "{}" \
+   -f 1 \   
    -i /path/to/test.jpg \
    -a '{"polygon_1":["POLYGON((0.2 0.2,0.7 0.13,0.9 0.7,0.4 0.9,0.05 0.8,0.2 0.25))"]}'
    ```
@@ -467,7 +469,7 @@ nvidia-docker run -itd --privileged ccr.ccs.tencentyun.com/public_images/ubuntu1
 3. 保存输出图片：
 
    ```shell
-   ./test-ji-api -f 1 -u "{}" -i /path/to/test.jpg -o /path/to/out.jpg
+   ./test-ji-api -f 1 -i /path/to/test.jpg -o /path/to/out.jpg
    ```
 
 更多选项，请参考`test-ji-api --help`
