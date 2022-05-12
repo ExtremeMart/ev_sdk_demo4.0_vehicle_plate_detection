@@ -85,8 +85,7 @@ STATUS SampleAlgorithm::GetOutFrame(JiImageInfo **out, unsigned int &outCount)
 }
 
 STATUS SampleAlgorithm::Process(const cv::Mat &inFrame, const char *args, JiEvent &event)
-{
-    mOutCount++;
+{    
     //输入图片为空的时候直接返回错误
     if (inFrame.empty())
     {
