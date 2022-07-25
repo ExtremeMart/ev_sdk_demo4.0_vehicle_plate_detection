@@ -91,6 +91,7 @@ struct Configuration
     {
         if( mJConfigValue.isMember(key) && mJConfigValue[key].isArray() ) 
         {
+            val.resize(mJConfigValue[key].size());
             for(int i = 0; i <  mJConfigValue[key].size(); ++i)
             {
                 val[i] = mJConfigValue[key][i].asString();
